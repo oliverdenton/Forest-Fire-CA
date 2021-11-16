@@ -12,24 +12,31 @@ sys.path.append(main_dir_loc + 'capyle/ca')
 sys.path.append(main_dir_loc + 'capyle/guicomponents')
 # ---
 
-from capyle.ca import Grid2D, Neighbourhood, CAConfig, randomise2d
-import capyle.utils as utils
 import numpy as np
+import capyle.utils as utils
+from capyle.ca import Grid2D, Neighbourhood, CAConfig, randomise2d
 
+def transition_func(grid, neighbourstates, neighbourcounts, decaygrid):
 
-def transition_func(grid, neighbourstates, neighbourcounts):
-    # dead = state == 0, live = state == 1
-    # unpack state counts for state 0 and state 1
-    # dead_neighbours, live_neighbours = neighbourcounts
-    # # create boolean arrays for the birth & survival rules
-    # # if 3 live neighbours and is dead -> cell born
-    # birth = (live_neighbours == 3) & (grid == 0)
-    # # if 2 or 3 live neighbours and is alive -> survives
-    # survive = ((live_neighbours == 2) | (live_neighbours == 3)) & (grid == 1)
-    # # Set all cells to 0 (dead)
-    # grid[:, :] = 0
-    # # Set cells to 1 where either cell is born or survives
-    # grid[birth | survive] = 1
+    fuel = {"chaparral": 3}
+    # unpack state counts for all states
+    burnt, chaparral, lake, dense_forest, canyon, chaparral_burning, dense_forest_burning, canyon_buring, town = neighbourcounts
+    all_burning_neighbours = chaparral_burning + dense_forest_burning + canyon_buring
+    # unpack the state arrays
+    NW, N, NE, W, E, SW, S, SE = neighbourstates
+    # if chaparral and had 3 neighbours are on fire start burning
+    chaparral_cells = (grid == 1)
+    more_than_2_neighbours_burning = (all_burning_neighbours >= 2)
+    chaparral_cells_to_burn = chaparral_cells & more_than_2_neighbours_burning
+    grid[chaparral_cells_to_burn] = 5
+    # add initial fuel to decay grid
+    decaygrid[chaparral_cells_to_burn] = fuel.get("chaparral")
+
+    burning_chaparral_cells = (grid == 5)
+    decaygrid[burning_chaparral_cells] -= 1
+
+    decayed_to_zero = (decaygrid == 0) # find those which have decayed to 0
+    grid[decayed_to_zero] = 0 # switch their state to 0
     return grid
 
 
@@ -39,40 +46,41 @@ def setup(args):
     # ---THE CA MUST BE RELOADED IN THE GUI IF ANY OF THE BELOW ARE CHANGED---
     config.title = "Forest Fire Simulation"
     config.dimensions = 2
-    #Comment what states mean
-    states = {"B": 0, "C": 1, "DF": 2, "L": 3, "CS": 4, "C-B": 5, "DF-B": 6, "L-B": 7, "CS-B": 8}
-    
-    # States: 0 = Burnt, 1 = Chaparral, 2 = Lake, 3 = Forest, 4 = Canyon, 
+    # Comment what states mean
+    states = {"B": 0, "C": 1, "DF": 2, "L": 3, "CS": 4,
+              "C-B": 5, "DF-B": 6, "L-B": 7, "CS-B": 8}
+
+    # States: 0 = Burnt, 1 = Chaparral, 2 = Lake, 3 = Dense Forest, 4 = Canyon,
     #         5 = Chaparral-Burning, 6 = Forest-Burning, 7 = Canyon-Burning, 8 = Town
-    config.states = (0,1,2,3,4,5,6,7,8)
+    config.states = (0, 1, 2, 3, 4, 5, 6, 7, 8)
     # ------------------------------------------------------------------------
 
     # ---- Override the defaults below (these may be changed at anytime) ----
-    config.state_colors = [(0.18, 0.09, 0), (0.8, 0.79, 0),(0, 0.68, 0.93), (0.3, 0.39, 0.16), (0.99,0.99, 0), 
-                           (1, 0, 0),(1, 0, 0), (1, 0, 0), (0,0,0)]
+    config.state_colors = [(0.18, 0.09, 0), (0.8, 0.79, 0), (0, 0.68, 0.93), (0.3, 0.39, 0.16), (0.99, 0.99, 0),
+                           (1, 0, 0), (1, 0, 0), (1, 0, 0), (0, 0, 0)]
 
     config.num_generations = 150
-    config.grid_dims = (20,20)
-    grid = np.array([[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-                    [1,1,1,1,1,4,3,3,1,1,1,1,1,1,1,1,1,1,1,1],
-                    [1,1,1,1,1,4,3,3,1,1,1,1,1,1,1,1,1,1,1,1],
-                    [1,1,1,1,1,4,3,3,1,1,1,1,1,1,1,1,1,1,1,1],
-                    [1,1,1,1,1,4,3,3,1,1,1,1,1,1,1,1,1,1,1,1],
-                    [1,1,1,2,1,4,3,3,1,1,1,1,1,1,1,1,1,1,1,1],
-                    [1,1,1,2,1,4,3,3,1,1,1,1,1,1,1,1,1,1,1,1],
-                    [1,1,1,1,3,4,3,3,1,1,1,1,1,1,1,1,1,1,1,1],
-                    [1,1,1,1,3,4,3,3,1,1,1,1,1,1,1,1,1,1,1,1],
-                    [1,1,1,1,3,4,3,3,3,3,3,3,3,3,3,3,3,3,3,3],
-                    [1,1,1,1,3,4,3,3,3,3,3,3,3,3,3,3,3,3,3,3],
-                    [1,1,1,1,3,4,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-                    [1,1,1,1,3,4,1,1,1,1,1,1,2,2,2,2,2,2,1,1],
-                    [1,1,1,1,3,4,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-                    [1,1,1,1,3,4,1,1,1,1,8,1,1,1,1,1,1,1,1,1],
-                    [1,1,1,1,1,4,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-                    [1,1,1,1,1,4,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]])
+    config.grid_dims = (20, 20)
+    grid = np.array([[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 4, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 4, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 4, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 4, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 2, 1, 4, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 2, 1, 4, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 5, 5, 1],
+                    [1, 1, 1, 1, 3, 4, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 5, 5, 1],
+                    [1, 1, 1, 1, 3, 4, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 3, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+                    [1, 1, 1, 1, 3, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+                    [1, 1, 1, 1, 3, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 3, 4, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 1, 1],
+                    [1, 1, 1, 1, 3, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 3, 4, 1, 1, 1, 1, 8, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]])
 
     config.set_initial_grid(grid)
     # ----------------------------------------------------------------------
@@ -88,8 +96,10 @@ def main():
     # Open the config object
     config = setup(sys.argv[1:])
 
+    decaygrid = np.zeros(config.grid_dims)
+    decaygrid.fill(-1)
     # Create grid object
-    grid = Grid2D(config, transition_func)
+    grid = Grid2D(config, (transition_func, decaygrid))
 
     # Run the CA, save grid state every generation to timeline
     timeline = grid.run()
