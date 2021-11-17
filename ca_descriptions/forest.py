@@ -17,14 +17,24 @@ import capyle.utils as utils
 from capyle.ca import Grid2D, Neighbourhood, CAConfig, randomise2d
 import random
 
+# Returns True probability % of the time
 def decision(probability):
     return random.random() < probability
     
+# Returns cells which will burn at next time step
+def next_burning_cells(possible_cells_to_burn, probability):
+    for ix,iy in np.ndindex(possible_cells_to_burn.shape):
+        if possible_cells_to_burn[ix,iy]:
+            if decision(probability):
+                possible_cells_to_burn[ix,iy] = True
+            else:
+                possible_cells_to_burn[ix,iy] = False
+    return possible_cells_to_burn
 
 def transition_func(grid, neighbourstates, neighbourcounts, decaygrid):
 
-    fuel = {"canyon": 1, "chaparral": 4, "dense_forest":7}
-
+    fuel = {"canyon": 1, "chaparral": 4, "dense_forest":16}
+    wind_direction = "NW"
     # unpack state counts for all states
     burnt, chaparral, lake, dense_forest, canyon, chaparral_burning, dense_forest_burning, canyon_buring, town = neighbourcounts
     all_burning_neighbours_counts = chaparral_burning + dense_forest_burning + canyon_buring
@@ -36,23 +46,28 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid):
         grid[7:9,17:19] = 5
         decaygrid[7:9, 17:19] = fuel.get("chaparral")
 
-    # if canyon and has 1 neighbour on fire, start burning
-    canyon_cells = (grid == 4) # find all chaparral cell
     more_than_1_neighbours_burning = (all_burning_neighbours_counts >= 1) # cells that have more than 1 neighbours which are burning
-    canyon_cells_to_burn = canyon_cells & more_than_1_neighbours_burning
-    grid[canyon_cells_to_burn] = 7
+    
+    # Canyon
+    canyon_cells = (grid == 4) # find all canyon cell
+    canyon_probability = 1 # Probability of canyon cell burning 
+    canyon_possible_cells_to_burn = canyon_cells & more_than_1_neighbours_burning # Canyon cells which have at least 1 burning neighbour
+    canyon_next_burning_cells = next_burning_cells(canyon_possible_cells_to_burn, canyon_probability)
+    grid[canyon_next_burning_cells] = 7
 
-    # if chaparral and has 2 neighbours on fire, start burning
+    # Chaparral 
     chaparral_cells = (grid == 1) # find all chaparral cell
-    more_than_2_neighbours_burning = (all_burning_neighbours_counts >= 2) # cells that have more than 2 neighbours which are burning
-    chaparral_cells_to_burn = chaparral_cells & more_than_2_neighbours_burning
-    grid[chaparral_cells_to_burn] = 5
+    chaparral_cells_probability = 0.4 # Probability of chaparral cell burning 
+    chaparral_possible_cells_to_burn = chaparral_cells & more_than_1_neighbours_burning # chaparral cells which have at least 1 burning neighbour
+    chaparral_next_burning_cells = next_burning_cells(chaparral_possible_cells_to_burn, chaparral_cells_probability)
+    grid[chaparral_next_burning_cells] = 5
 
-    # if dense forest and has 4 neighbours on fire, start burning
-    dense_forest_cells = (grid == 3) # find all chaparral cell
-    more_than_4_neighbours_burning = (all_burning_neighbours_counts >= 4) # cells that have more than 3 neighbours which are burning
-    dense_forest_cells_to_burn = dense_forest_cells & more_than_4_neighbours_burning
-    grid[dense_forest_cells_to_burn] = 6
+    # Dense Forest
+    dense_forest_cells = (grid == 3) # find all dense_forest cell
+    dense_forest_probability = 0.1 # Probability of dense forest cell burning 
+    dense_forest_possible_cells_to_burn = dense_forest_cells & (more_than_1_neighbours_burning) # Dense Forest cells which have at least 1 burning neighbour
+    dense_forest_next_burning_cells = next_burning_cells(dense_forest_possible_cells_to_burn, dense_forest_probability)
+    grid[dense_forest_next_burning_cells] = 6
 
 
     # Decay
@@ -60,9 +75,9 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid):
     decaygrid[burning_cells] -= 1 # decrease fuel in burning chapprall cells by 1
 
     # add initial fuel to decay grid
-    decaygrid[canyon_cells_to_burn] = fuel.get("canyon")
-    decaygrid[chaparral_cells_to_burn] = fuel.get("chaparral")
-    decaygrid[dense_forest_cells_to_burn] = fuel.get("dense_forest")
+    decaygrid[canyon_next_burning_cells] = fuel.get("canyon")
+    decaygrid[chaparral_next_burning_cells] = fuel.get("chaparral")
+    decaygrid[dense_forest_next_burning_cells] = fuel.get("dense_forest")
 
     decayed_to_zero = (decaygrid == 0) # find those which have decayed to 0
     grid[decayed_to_zero] = 0 # switch their state to 0
