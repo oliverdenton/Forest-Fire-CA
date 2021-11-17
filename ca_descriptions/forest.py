@@ -36,22 +36,22 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid):
         grid[7:9,17:19] = 5
         decaygrid[7:9, 17:19] = fuel.get("chaparral")
 
-    # if canyon and has 3 neighbours are on fire start burning
+    # if canyon and has 1 neighbour on fire, start burning
     canyon_cells = (grid == 4) # find all chaparral cell
     more_than_1_neighbours_burning = (all_burning_neighbours_counts >= 1) # cells that have more than 1 neighbours which are burning
     canyon_cells_to_burn = canyon_cells & more_than_1_neighbours_burning
     grid[canyon_cells_to_burn] = 7
 
-    # if chaparral and has 3 neighbours are on fire start burning
+    # if chaparral and has 2 neighbours on fire, start burning
     chaparral_cells = (grid == 1) # find all chaparral cell
     more_than_2_neighbours_burning = (all_burning_neighbours_counts >= 2) # cells that have more than 2 neighbours which are burning
     chaparral_cells_to_burn = chaparral_cells & more_than_2_neighbours_burning
     grid[chaparral_cells_to_burn] = 5
 
-    # if dense forest and has 5 neighbours are on fire start burning
+    # if dense forest and has 4 neighbours on fire, start burning
     dense_forest_cells = (grid == 3) # find all chaparral cell
-    more_than_3_neighbours_burning = (all_burning_neighbours_counts >= 3) # cells that have more than 3 neighbours which are burning
-    dense_forest_cells_to_burn = dense_forest_cells & more_than_2_neighbours_burning
+    more_than_4_neighbours_burning = (all_burning_neighbours_counts >= 4) # cells that have more than 3 neighbours which are burning
+    dense_forest_cells_to_burn = dense_forest_cells & more_than_4_neighbours_burning
     grid[dense_forest_cells_to_burn] = 6
 
 
@@ -112,6 +112,8 @@ def setup(args):
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]])
 
     config.set_initial_grid(grid)
+
+    config.wrap = False
     # ----------------------------------------------------------------------
 
     if len(args) == 2:
