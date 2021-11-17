@@ -22,8 +22,18 @@ def decision(probability):
     return random.random() < probability
     
 # Returns cells which will burn at next time step
-def next_burning_cells(possible_cells_to_burn, probability):
+def next_burning_cells(possible_cells_to_burn, probability, cells_with_wind, cells_opposite_wind):
+    WIND_FACTOR = 50 # 50%
+
     for ix,iy in np.ndindex(possible_cells_to_burn.shape):
+        # scale probability depending on wind direction
+        if possible_cells_to_burn[ix,iy] and (cells_with_wind[ix,iy] == 5 or cells_with_wind[ix,iy] == 6 or cells_with_wind[ix,iy] == 7):
+            probability = probability * (1+WIND_FACTOR)
+        elif possible_cells_to_burn[ix,iy] and (cells_opposite_wind[ix,iy] == 5 or cells_opposite_wind[ix,iy] == 6 or cells_opposite_wind[ix,iy] == 7):
+            probability = probability * (1-WIND_FACTOR)
+        else:
+            probability = probability
+        # if turn to burning cell depending on probability
         if possible_cells_to_burn[ix,iy]:
             if decision(probability):
                 possible_cells_to_burn[ix,iy] = True
@@ -34,12 +44,15 @@ def next_burning_cells(possible_cells_to_burn, probability):
 def transition_func(grid, neighbourstates, neighbourcounts, decaygrid):
 
     fuel = {"canyon": 1, "chaparral": 4, "dense_forest":16}
-    wind_direction = "NW"
+    wind_direction = "SE"
+
     # unpack state counts for all states
     burnt, chaparral, lake, dense_forest, canyon, chaparral_burning, dense_forest_burning, canyon_buring, town = neighbourcounts
     all_burning_neighbours_counts = chaparral_burning + dense_forest_burning + canyon_buring
     # unpack the state arrays
     NW, N, NE, W, E, SW, S, SE = neighbourstates
+    wind_opposite= {"NW":SE, "N":S, "NE":SW, "W":E, "E":W, "SW":NE, "S":N, "SE":NW}
+    wind_with= {"NW":NW, "N":N, "NE":NE, "W":W, "E":E, "SW":SW, "S":S, "SE":SE}
 
     # randomly start fire at power plant location
     if decision(0.05) and np.all(grid[7:9,17:19] != 0):
@@ -47,26 +60,28 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid):
         decaygrid[7:9, 17:19] = fuel.get("chaparral")
 
     more_than_1_neighbours_burning = (all_burning_neighbours_counts >= 1) # cells that have more than 1 neighbours which are burning
-    
+    cells_with_wind = wind_with[wind_direction]
+    cells_opposite_wind = wind_opposite[wind_direction]
+
     # Canyon
     canyon_cells = (grid == 4) # find all canyon cell
     canyon_probability = 1 # Probability of canyon cell burning 
     canyon_possible_cells_to_burn = canyon_cells & more_than_1_neighbours_burning # Canyon cells which have at least 1 burning neighbour
-    canyon_next_burning_cells = next_burning_cells(canyon_possible_cells_to_burn, canyon_probability)
+    canyon_next_burning_cells = next_burning_cells(canyon_possible_cells_to_burn, canyon_probability, cells_with_wind, cells_opposite_wind)
     grid[canyon_next_burning_cells] = 7
 
     # Chaparral 
     chaparral_cells = (grid == 1) # find all chaparral cell
     chaparral_cells_probability = 0.4 # Probability of chaparral cell burning 
     chaparral_possible_cells_to_burn = chaparral_cells & more_than_1_neighbours_burning # chaparral cells which have at least 1 burning neighbour
-    chaparral_next_burning_cells = next_burning_cells(chaparral_possible_cells_to_burn, chaparral_cells_probability)
+    chaparral_next_burning_cells = next_burning_cells(chaparral_possible_cells_to_burn, chaparral_cells_probability, cells_with_wind, cells_opposite_wind)
     grid[chaparral_next_burning_cells] = 5
 
     # Dense Forest
     dense_forest_cells = (grid == 3) # find all dense_forest cell
     dense_forest_probability = 0.1 # Probability of dense forest cell burning 
     dense_forest_possible_cells_to_burn = dense_forest_cells & (more_than_1_neighbours_burning) # Dense Forest cells which have at least 1 burning neighbour
-    dense_forest_next_burning_cells = next_burning_cells(dense_forest_possible_cells_to_burn, dense_forest_probability)
+    dense_forest_next_burning_cells = next_burning_cells(dense_forest_possible_cells_to_burn, dense_forest_probability,  cells_with_wind, cells_opposite_wind)
     grid[dense_forest_next_burning_cells] = 6
 
 
