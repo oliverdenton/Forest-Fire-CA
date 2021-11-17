@@ -43,21 +43,26 @@ def next_burning_cells(possible_cells_to_burn, probability, cells_with_wind, cel
 
 def transition_func(grid, neighbourstates, neighbourcounts, decaygrid):
 
-    fuel = {"canyon": 1, "chaparral": 4, "dense_forest":16}
+    fuel = {"canyon": 1, "chaparral": 4, "dense_forest":16, "town":-1}
     wind_direction = "SE"
 
     # unpack state counts for all states
-    burnt, chaparral, lake, dense_forest, canyon, chaparral_burning, dense_forest_burning, canyon_buring, town = neighbourcounts
+    burnt, chaparral, lake, dense_forest, canyon, chaparral_burning, dense_forest_burning, canyon_buring, town, town_burning = neighbourcounts
     all_burning_neighbours_counts = chaparral_burning + dense_forest_burning + canyon_buring
     # unpack the state arrays
     NW, N, NE, W, E, SW, S, SE = neighbourstates
     wind_opposite= {"NW":SE, "N":S, "NE":SW, "W":E, "E":W, "SW":NE, "S":N, "SE":NW}
     wind_with= {"NW":NW, "N":N, "NE":NE, "W":W, "E":E, "SW":SW, "S":S, "SE":SE}
 
-    # randomly start fire at power plant location
-    if decision(0.05) and np.all(grid[7:9,17:19] != 0):
+    # Start fire at power plant location, with a changable probability
+    if decision(1) and np.all(grid[7:9,17:19] == 1):
         grid[7:9,17:19] = 5
         decaygrid[7:9, 17:19] = fuel.get("chaparral")
+
+    # Start fire at incinerator location, with a changable probability
+    if decision(0) and np.all(grid[7:9,1:3] == 1):
+        grid[7:9,1:3] = 5
+        decaygrid[7:9, 1:3] = fuel.get("chaparral")
 
     more_than_1_neighbours_burning = (all_burning_neighbours_counts >= 1) # cells that have more than 1 neighbours which are burning
     cells_with_wind = wind_with[wind_direction]
@@ -84,6 +89,13 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid):
     dense_forest_next_burning_cells = next_burning_cells(dense_forest_possible_cells_to_burn, dense_forest_probability,  cells_with_wind, cells_opposite_wind)
     grid[dense_forest_next_burning_cells] = 6
 
+    # Town
+    town_cells = (grid == 8) # find all town cell
+    town_probability = 1 # Probability of town cell burning 
+    town_possible_cells_to_burn = town_cells & (more_than_1_neighbours_burning) # Dense Forest cells which have at least 1 burning neighbour
+    town_next_burning_cells = next_burning_cells(town_possible_cells_to_burn, town_probability,  cells_with_wind, cells_opposite_wind)
+    grid[town_next_burning_cells] = 9
+
 
     # Decay
     burning_cells = (grid == 5) | (grid == 6) | (grid == 7)  # find burning chaparral cells
@@ -93,6 +105,7 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid):
     decaygrid[canyon_next_burning_cells] = fuel.get("canyon")
     decaygrid[chaparral_next_burning_cells] = fuel.get("chaparral")
     decaygrid[dense_forest_next_burning_cells] = fuel.get("dense_forest")
+    decaygrid[town_next_burning_cells] = fuel.get("town")
 
     decayed_to_zero = (decaygrid == 0) # find those which have decayed to 0
     grid[decayed_to_zero] = 0 # switch their state to 0
@@ -105,18 +118,15 @@ def setup(args):
     # ---THE CA MUST BE RELOADED IN THE GUI IF ANY OF THE BELOW ARE CHANGED---
     config.title = "Forest Fire Simulation"
     config.dimensions = 2
-    # Comment what states mean
-    states = {"B": 0, "C": 1, "DF": 2, "L": 3, "CS": 4,
-              "C-B": 5, "DF-B": 6, "L-B": 7, "CS-B": 8}
 
     # States: 0 = Burnt, 1 = Chaparral, 2 = Lake, 3 = Dense Forest, 4 = Canyon,
-    #         5 = Chaparral-Burning, 6 = Dense Forest-Burning, 7 = Canyon-Burning, 8 = Town
-    config.states = (0, 1, 2, 3, 4, 5, 6, 7, 8)
+    #         5 = Chaparral-Burning, 6 = Dense Forest-Burning, 7 = Canyon-Burning, 8 = Town, 9 = Town Burning
+    config.states = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
     # ------------------------------------------------------------------------
 
     # ---- Override the defaults below (these may be changed at anytime) ----
     config.state_colors = [(0.18, 0.09, 0), (0.8, 0.79, 0), (0, 0.68, 0.93), (0.3, 0.39, 0.16), (0.99, 0.99, 0),
-                           (1, 0, 0), (1, 0, 0), (1, 0, 0), (0, 0, 0)]
+                           (1, 0, 0), (1, 0, 0), (1, 0, 0), (0, 0, 0), (1, 0, 0)]
 
     config.num_generations = 150
     config.grid_dims = (20, 20)
