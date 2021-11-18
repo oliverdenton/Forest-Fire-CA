@@ -54,9 +54,13 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid):
     wind_opposite= {"NW":SE, "N":S, "NE":SW, "W":E, "E":W, "SW":NE, "S":N, "SE":NW}
     wind_with= {"NW":NW, "N":N, "NE":NE, "W":W, "E":E, "SW":SW, "S":S, "SE":SE}
 
+    sf = int(grid.shape[0] / 20)
+    print(sf)
+
     # Start fire at power plant location, with a changable probability
+    # TODO: fix inital fire location when scale factor changes
     if decision(1) and np.all(grid[7:9,17:19] == 1):
-        grid[7:9,17:19] = 5
+        grid[sf*7:sf*9,sf*17:sf*19] = 5
         decaygrid[7:9, 17:19] = fuel.get("chaparral")
 
     # Start fire at incinerator location, with a changable probability
@@ -92,7 +96,7 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid):
     # Town
     town_cells = (grid == 8) # find all town cell
     town_probability = 1 # Probability of town cell burning 
-    town_possible_cells_to_burn = town_cells & (more_than_1_neighbours_burning) # Dense Forest cells which have at least 1 burning neighbour
+    town_possible_cells_to_burn = town_cells & (more_than_1_neighbours_burning) # Town cells which have at least 1 burning neighbour
     town_next_burning_cells = next_burning_cells(town_possible_cells_to_burn, town_probability,  cells_with_wind, cells_opposite_wind)
     grid[town_next_burning_cells] = 9
 
@@ -129,7 +133,7 @@ def setup(args):
                            (1, 0, 0), (1, 0, 0), (1, 0, 0), (0, 0, 0), (1, 0, 0)]
 
     config.num_generations = 150
-    config.grid_dims = (20, 20)
+    
     grid = np.array([[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
                     [1, 1, 1, 1, 1, 4, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -151,7 +155,12 @@ def setup(args):
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]])
 
-    config.set_initial_grid(grid)
+    # Standard Grid size is 20x20, scale up by scale factor sf:
+    sf = 5
+    new_grid = np.kron(grid, np.ones((sf,sf)))
+    config.grid_dims = (20*sf, 20*sf)
+
+    config.set_initial_grid(new_grid)
 
     config.wrap = False
     # ----------------------------------------------------------------------
