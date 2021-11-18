@@ -23,13 +23,13 @@ def decision(probability):
     
 # Returns cells which will burn at next time step
 def next_burning_cells(possible_cells_to_burn, probability, cells_with_wind, cells_opposite_wind):
-    WIND_FACTOR = 50 # 50%
+    WIND_FACTOR = 0.5 # 50%
 
     for ix,iy in np.ndindex(possible_cells_to_burn.shape):
         # scale probability depending on wind direction
-        if possible_cells_to_burn[ix,iy] and (cells_with_wind[ix,iy] == 5 or cells_with_wind[ix,iy] == 6 or cells_with_wind[ix,iy] == 7):
+        if possible_cells_to_burn[ix,iy] and (cells_opposite_wind[ix,iy] == 5 or cells_opposite_wind[ix,iy] == 6 or cells_opposite_wind[ix,iy] == 7):
             probability = probability * (1+WIND_FACTOR)
-        elif possible_cells_to_burn[ix,iy] and (cells_opposite_wind[ix,iy] == 5 or cells_opposite_wind[ix,iy] == 6 or cells_opposite_wind[ix,iy] == 7):
+        elif possible_cells_to_burn[ix,iy] and (cells_with_wind[ix,iy] == 5 or cells_with_wind[ix,iy] == 6 or cells_with_wind[ix,iy] == 7):
             probability = probability * (1-WIND_FACTOR)
         else:
             probability = probability
@@ -44,7 +44,7 @@ def next_burning_cells(possible_cells_to_burn, probability, cells_with_wind, cel
 def transition_func(grid, neighbourstates, neighbourcounts, decaygrid):
 
     fuel = {"canyon": 1, "chaparral": 4, "dense_forest":16, "town":-1}
-    wind_direction = "SE"
+    wind_direction = "NW"
 
     # unpack state counts for all states
     burnt, chaparral, lake, dense_forest, canyon, chaparral_burning, dense_forest_burning, canyon_buring, town, town_burning = neighbourcounts
