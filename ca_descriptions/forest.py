@@ -16,6 +16,7 @@ import numpy as np
 import capyle.utils as utils
 from capyle.ca import Grid2D, Neighbourhood, CAConfig, randomise2d
 import random
+import math
 
 # Returns True probability % of the time
 def decision(probability):
@@ -23,19 +24,25 @@ def decision(probability):
     
 # Returns cells which will burn at next time step
 def next_burning_cells(possible_cells_to_burn, probability, cells_with_wind, cells_opposite_wind):
-    WIND_FACTOR = 0.5 # 50%
+    WIND_FACTOR = 0 # 0%
+    SEASON = "none"
+    season_factor = {"winter":0.5, "summer":1.5, "autumn":1.1, "spring":0.9, "none":1}
+
+    base_probability = probability
 
     for ix,iy in np.ndindex(possible_cells_to_burn.shape):
         # scale probability depending on wind direction
-        if possible_cells_to_burn[ix,iy] and (cells_opposite_wind[ix,iy] == 5 or cells_opposite_wind[ix,iy] == 6 or cells_opposite_wind[ix,iy] == 7 or cells_opposite_wind[ix,iy] == 9):
-            probability = probability * (1+WIND_FACTOR)
-        elif possible_cells_to_burn[ix,iy] and (cells_with_wind[ix,iy] == 5 or cells_with_wind[ix,iy] == 6 or cells_with_wind[ix,iy] == 7 or cells_with_wind[ix,iy] == 9):
-            probability = probability * (1-WIND_FACTOR)
+        temp_probability = base_probability
+        if possible_cells_to_burn[ix,iy] and (cells_with_wind[ix,iy]):
+            temp_probability = base_probability * (1+WIND_FACTOR)
+        elif possible_cells_to_burn[ix,iy] and (cells_opposite_wind[ix,iy]):
+            temp_probability = base_probability * (1-WIND_FACTOR)
         else:
-            probability = probability
-        # if turn to burning cell depending on probability
+            temp_probability = base_probability
+        # scale probability depending on season
+        temp_probability = temp_probability * season_factor[SEASON]
         if possible_cells_to_burn[ix,iy]:
-            if decision(probability):
+            if decision(temp_probability):
                 possible_cells_to_burn[ix,iy] = True
             else:
                 possible_cells_to_burn[ix,iy] = False
@@ -51,24 +58,24 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid):
     all_burning_neighbours_counts = chaparral_burning + dense_forest_burning + canyon_buring + town_burning
     # unpack the state arrays
     NW, N, NE, W, E, SW, S, SE = neighbourstates
-    wind_opposite= {"NW":SE, "N":S, "NE":SW, "W":E, "E":W, "SW":NE, "S":N, "SE":NW}
-    wind_with= {"NW":NW, "N":N, "NE":NE, "W":W, "E":E, "SW":SW, "S":S, "SE":SE}
+    wind_with= {"NW":(SE, S , W), "N": (S , SE , SW), "NE":(SW,S,W), "W":(E,NE,SE), "E":(W,NW,SW), "SW":(NE,N,E), "S":(N,NE,NW), "SE":(NW,W,N)}
+    wind_opposite= {"NW":(NW,N,W), "N":(N,NE,NW), "NE":(NE,E,N), "W":(W,SW,SE), "E":(E,SE,NE), "SW":(SW,W,S), "S":(S,SE,SW), "SE":(SE,S,E)}
 
     sf = int(grid.shape[0] / 20)
 
     # Start fire at power plant location, with a changable probability
-    if decision(0) and np.all(grid[sf*7:sf*9,sf*17:sf*19] == 1):
+    if decision(1) and np.all(grid[sf*7:sf*9,sf*17:sf*19] == 1):
         grid[sf*7:sf*9,sf*17:sf*19] = 5
         decaygrid[sf*7:sf*9, sf*17:sf*19] = fuel.get("chaparral")
 
     # Start fire at incinerator location, with a changable probability
-    if decision(1) and np.all(grid[sf*7:sf*9,sf*1:sf*3] == 1):
+    if decision(0) and np.all(grid[sf*7:sf*9,sf*1:sf*3] == 1):
         grid[sf*7:sf*9,sf*1:sf*3] = 5
         decaygrid[sf*7:sf*9, sf*1:sf*3] = fuel.get("chaparral")
 
     more_than_1_neighbours_burning = (all_burning_neighbours_counts >= 1) # cells that have more than 1 neighbours which are burning
-    cells_with_wind = wind_with[wind_direction]
-    cells_opposite_wind = wind_opposite[wind_direction]
+    cells_with_wind = (wind_with[wind_direction][0] == 5 ) | (wind_with[wind_direction][0] == 6) | (wind_with[wind_direction][0] == 7) | (wind_with[wind_direction][0] == 9)
+    cells_opposite_wind = (wind_opposite[wind_direction][0] == 5) | (wind_opposite[wind_direction][0] == 6) | (wind_opposite[wind_direction][0] == 7) | (wind_opposite[wind_direction][0] == 9)
 
     # Canyon
     canyon_cells = (grid == 4) # find all canyon cell
@@ -130,7 +137,7 @@ def setup(args):
     config.state_colors = [(0.18, 0.09, 0), (0.8, 0.79, 0), (0, 0.68, 0.93), (0.3, 0.39, 0.16), (0.99, 0.99, 0),
                            (1, 0, 0), (1, 0, 0), (1, 0, 0), (0, 0, 0), (1, 0.53, 0)]
 
-    config.num_generations = 1000
+    config.num_generations = 300
     
     grid = np.array([[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
