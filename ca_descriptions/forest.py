@@ -27,9 +27,9 @@ def next_burning_cells(possible_cells_to_burn, probability, cells_with_wind, cel
 
     for ix,iy in np.ndindex(possible_cells_to_burn.shape):
         # scale probability depending on wind direction
-        if possible_cells_to_burn[ix,iy] and (cells_opposite_wind[ix,iy] == 5 or cells_opposite_wind[ix,iy] == 6 or cells_opposite_wind[ix,iy] == 7):
+        if possible_cells_to_burn[ix,iy] and (cells_opposite_wind[ix,iy] == 5 or cells_opposite_wind[ix,iy] == 6 or cells_opposite_wind[ix,iy] == 7 or cells_opposite_wind[ix,iy] == 9):
             probability = probability * (1+WIND_FACTOR)
-        elif possible_cells_to_burn[ix,iy] and (cells_with_wind[ix,iy] == 5 or cells_with_wind[ix,iy] == 6 or cells_with_wind[ix,iy] == 7):
+        elif possible_cells_to_burn[ix,iy] and (cells_with_wind[ix,iy] == 5 or cells_with_wind[ix,iy] == 6 or cells_with_wind[ix,iy] == 7 or cells_with_wind[ix,iy] == 9):
             probability = probability * (1-WIND_FACTOR)
         else:
             probability = probability
@@ -43,30 +43,28 @@ def next_burning_cells(possible_cells_to_burn, probability, cells_with_wind, cel
 
 def transition_func(grid, neighbourstates, neighbourcounts, decaygrid):
 
-    fuel = {"canyon": 1, "chaparral": 4, "dense_forest":16, "town":-1}
+    fuel = {"canyon": 1, "chaparral": 12, "dense_forest":120, "town":-1}
     wind_direction = "NW"
 
     # unpack state counts for all states
     burnt, chaparral, lake, dense_forest, canyon, chaparral_burning, dense_forest_burning, canyon_buring, town, town_burning = neighbourcounts
-    all_burning_neighbours_counts = chaparral_burning + dense_forest_burning + canyon_buring
+    all_burning_neighbours_counts = chaparral_burning + dense_forest_burning + canyon_buring + town_burning
     # unpack the state arrays
     NW, N, NE, W, E, SW, S, SE = neighbourstates
     wind_opposite= {"NW":SE, "N":S, "NE":SW, "W":E, "E":W, "SW":NE, "S":N, "SE":NW}
     wind_with= {"NW":NW, "N":N, "NE":NE, "W":W, "E":E, "SW":SW, "S":S, "SE":SE}
 
     sf = int(grid.shape[0] / 20)
-    print(sf)
 
     # Start fire at power plant location, with a changable probability
-    # TODO: fix inital fire location when scale factor changes
-    if decision(1) and np.all(grid[7:9,17:19] == 1):
+    if decision(0) and np.all(grid[sf*7:sf*9,sf*17:sf*19] == 1):
         grid[sf*7:sf*9,sf*17:sf*19] = 5
-        decaygrid[7:9, 17:19] = fuel.get("chaparral")
+        decaygrid[sf*7:sf*9, sf*17:sf*19] = fuel.get("chaparral")
 
     # Start fire at incinerator location, with a changable probability
-    if decision(0) and np.all(grid[7:9,1:3] == 1):
-        grid[7:9,1:3] = 5
-        decaygrid[7:9, 1:3] = fuel.get("chaparral")
+    if decision(1) and np.all(grid[sf*7:sf*9,sf*1:sf*3] == 1):
+        grid[sf*7:sf*9,sf*1:sf*3] = 5
+        decaygrid[sf*7:sf*9, sf*1:sf*3] = fuel.get("chaparral")
 
     more_than_1_neighbours_burning = (all_burning_neighbours_counts >= 1) # cells that have more than 1 neighbours which are burning
     cells_with_wind = wind_with[wind_direction]
@@ -74,7 +72,7 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid):
 
     # Canyon
     canyon_cells = (grid == 4) # find all canyon cell
-    canyon_probability = 1 # Probability of canyon cell burning 
+    canyon_probability = 0.8 # Probability of canyon cell burning 
     canyon_possible_cells_to_burn = canyon_cells & more_than_1_neighbours_burning # Canyon cells which have at least 1 burning neighbour
     canyon_next_burning_cells = next_burning_cells(canyon_possible_cells_to_burn, canyon_probability, cells_with_wind, cells_opposite_wind)
     grid[canyon_next_burning_cells] = 7
@@ -102,7 +100,7 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid):
 
 
     # Decay
-    burning_cells = (grid == 5) | (grid == 6) | (grid == 7)  # find burning chaparral cells
+    burning_cells = (grid == 5) | (grid == 6) | (grid == 7) | (grid == 9) # find burning cells
     decaygrid[burning_cells] -= 1 # decrease fuel in burning chapprall cells by 1
 
     # add initial fuel to decay grid
@@ -130,9 +128,9 @@ def setup(args):
 
     # ---- Override the defaults below (these may be changed at anytime) ----
     config.state_colors = [(0.18, 0.09, 0), (0.8, 0.79, 0), (0, 0.68, 0.93), (0.3, 0.39, 0.16), (0.99, 0.99, 0),
-                           (1, 0, 0), (1, 0, 0), (1, 0, 0), (0, 0, 0), (1, 0, 0)]
+                           (1, 0, 0), (1, 0, 0), (1, 0, 0), (0, 0, 0), (1, 0.53, 0)]
 
-    config.num_generations = 150
+    config.num_generations = 1000
     
     grid = np.array([[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -156,7 +154,7 @@ def setup(args):
                     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]])
 
     # Standard Grid size is 20x20, scale up by scale factor sf:
-    sf = 5
+    sf = 2
     new_grid = np.kron(grid, np.ones((sf,sf)))
     config.grid_dims = (20*sf, 20*sf)
 
