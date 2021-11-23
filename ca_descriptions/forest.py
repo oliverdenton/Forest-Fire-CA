@@ -24,11 +24,7 @@ def decision(probability):
     
 # Returns cells which will burn at next time step
 def next_burning_cells(possible_cells_to_burn, probability, cells_with_wind, cells_opposite_wind):
-<<<<<<< HEAD
     WIND_FACTOR = 25 # 0%
-=======
-    WIND_FACTOR = 100 # 0%
->>>>>>> cf79c261e80e64fea31cf500010a5ad5c1ef2d27
     SEASON = "none"
     season_factor = {"winter":0.5, "summer":1.5, "autumn":1.1, "spring":0.9, "none":1}
 
@@ -38,9 +34,9 @@ def next_burning_cells(possible_cells_to_burn, probability, cells_with_wind, cel
         # scale probability depending on wind direction
         temp_probability = base_probability
         if possible_cells_to_burn[ix,iy] and (cells_with_wind[ix,iy]):
-            temp_probability = base_probability * (1-WIND_FACTOR)
-        elif possible_cells_to_burn[ix,iy] and (cells_opposite_wind[ix,iy]):
             temp_probability = base_probability * (1+WIND_FACTOR)
+        elif possible_cells_to_burn[ix,iy] and (cells_opposite_wind[ix,iy]):
+            temp_probability = base_probability * (1-WIND_FACTOR)
         else:
             temp_probability = base_probability
         # scale probability depending on season
@@ -55,11 +51,7 @@ def next_burning_cells(possible_cells_to_burn, probability, cells_with_wind, cel
 def transition_func(grid, neighbourstates, neighbourcounts, decaygrid):
 
     fuel = {"canyon": 1, "chaparral": 12, "dense_forest":120, "town":-1}
-<<<<<<< HEAD
     wind_direction = "SE"
-=======
-    wind_direction = "NE"
->>>>>>> cf79c261e80e64fea31cf500010a5ad5c1ef2d27
 
     # unpack state counts for all states
     burnt, chaparral, lake, dense_forest, canyon, chaparral_burning, dense_forest_burning, canyon_buring, town, town_burning = neighbourcounts
