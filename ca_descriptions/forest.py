@@ -34,9 +34,9 @@ def next_burning_cells(possible_cells_to_burn, probability, cells_with_wind, cel
         # scale probability depending on wind direction
         temp_probability = base_probability
         if possible_cells_to_burn[ix,iy] and (cells_with_wind[ix,iy]):
-            temp_probability = base_probability * (1+WIND_FACTOR)
-        elif possible_cells_to_burn[ix,iy] and (cells_opposite_wind[ix,iy]):
             temp_probability = base_probability * (1-WIND_FACTOR)
+        elif possible_cells_to_burn[ix,iy] and (cells_opposite_wind[ix,iy]):
+            temp_probability = base_probability * (1+WIND_FACTOR)
         else:
             temp_probability = base_probability
         # scale probability depending on season
