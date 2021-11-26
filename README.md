@@ -32,6 +32,9 @@ See below for a quickstart guide:
 
 ![Forest Fire Sceenshot](forest-fire-demo.png)
 
+ Use the menu bar to select File -> Open. This will open in the folder `./ca_descriptions`.
+Then open forest.py
+
 After applying your custom parameters click the bottom left button 'Apply configuration & run CA' to run the simulation.
 
 See below on the parameters you can change:
